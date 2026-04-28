@@ -1,33 +1,103 @@
 "use strict";
 
-const STORAGE_KEYS = ["enabled", "aggressiveMode", "darkMode"];
+const STORAGE_KEYS = ["enabled", "mode", "darkMode", "aggressiveMode"];
 
 const DEFAULT_SETTINGS = {
   enabled: true,
-  aggressiveMode: true,
+  mode: "aggressive",
   darkMode: false
 };
 
-const GUARDED_EVENTS = ["copy", "cut", "paste", "contextmenu", "selectstart", "dragstart"];
+const MODES = {
+  NORMAL: "normal",
+  AGGRESSIVE: "aggressive",
+  ULTRA: "ultra"
+};
+
+const BASE_EVENTS = [
+  "copy",
+  "cut",
+  "paste",
+  "contextmenu",
+  "selectstart",
+  "dragstart",
+  "keydown",
+  "keypress",
+  "keyup"
+];
+const ULTRA_EXTRA_EVENTS = ["mousedown", "mouseup"];
 
 let currentSettings = { ...DEFAULT_SETTINGS };
 let domObserver = null;
 let selectionStyleTag = null;
+let overlayStyleTag = null;
 let listenersAttached = false;
 let pageGuardInjected = false;
+let rebindingIntervalId = null;
+
+const debugState = {
+  mode: DEFAULT_SETTINGS.mode,
+  enabled: DEFAULT_SETTINGS.enabled,
+  overridesApplied: [],
+  blockerSignals: {
+    canvasDetected: false,
+    iframeCount: 0,
+    crossOriginIframeCount: 0,
+    shadowRootCount: 0
+  },
+  lastAppliedAt: null
+};
+
+function getActiveEventsByMode() {
+  if (currentSettings.mode === MODES.ULTRA) {
+    return [...BASE_EVENTS, ...ULTRA_EXTRA_EVENTS];
+  }
+  if (currentSettings.mode === MODES.AGGRESSIVE) {
+    return BASE_EVENTS;
+  }
+  return ["copy", "cut", "paste", "contextmenu", "selectstart", "dragstart", "keydown"];
+}
+
+function updateDebugState(overridesApplied) {
+  const canvases = document.querySelectorAll("canvas");
+  const iframes = document.querySelectorAll("iframe");
+  let crossOriginIframeCount = 0;
+
+  for (const iframe of iframes) {
+    try {
+      if (iframe.contentWindow && iframe.contentWindow.location.origin !== window.location.origin) {
+        crossOriginIframeCount += 1;
+      }
+    } catch (_error) {
+      crossOriginIframeCount += 1;
+    }
+  }
+
+  debugState.mode = currentSettings.mode;
+  debugState.enabled = currentSettings.enabled;
+  debugState.overridesApplied = overridesApplied;
+  debugState.blockerSignals.canvasDetected = canvases.length > 0;
+  debugState.blockerSignals.iframeCount = iframes.length;
+  debugState.blockerSignals.crossOriginIframeCount = crossOriginIframeCount;
+  debugState.lastAppliedAt = new Date().toISOString();
+}
 
 /**
  * Normalizes data from storage into safe, explicit booleans.
  * @param {Partial<typeof DEFAULT_SETTINGS>} stored
- * @returns {{enabled: boolean, aggressiveMode: boolean, darkMode: boolean}}
+ * @returns {{enabled: boolean, mode: string, darkMode: boolean}}
  */
 function normalizeSettings(stored) {
+  let mode = DEFAULT_SETTINGS.mode;
+  if (stored.mode === MODES.NORMAL || stored.mode === MODES.AGGRESSIVE || stored.mode === MODES.ULTRA) {
+    mode = stored.mode;
+  } else if (typeof stored.aggressiveMode === "boolean") {
+    mode = stored.aggressiveMode ? MODES.AGGRESSIVE : MODES.NORMAL;
+  }
+
   return {
     enabled: typeof stored.enabled === "boolean" ? stored.enabled : DEFAULT_SETTINGS.enabled,
-    aggressiveMode:
-      typeof stored.aggressiveMode === "boolean"
-        ? stored.aggressiveMode
-        : DEFAULT_SETTINGS.aggressiveMode,
+    mode,
     darkMode: typeof stored.darkMode === "boolean" ? stored.darkMode : DEFAULT_SETTINGS.darkMode
   };
 }
@@ -55,7 +125,11 @@ function guardClipboardEvent(event) {
     }
   }
 
-  // Keep default browser action intact, only block page scripts from interfering.
+  if (currentSettings.mode === MODES.NORMAL && event.type !== "keydown") {
+    return;
+  }
+
+  // Keep default browser action intact; block page scripts from interference.
   event.stopImmediatePropagation();
 }
 
@@ -66,13 +140,11 @@ function attachGuards() {
 
   const options = { capture: true, passive: false };
 
-  for (const eventName of GUARDED_EVENTS) {
+  const activeEvents = getActiveEventsByMode();
+  for (const eventName of activeEvents) {
     window.addEventListener(eventName, guardClipboardEvent, options);
     document.addEventListener(eventName, guardClipboardEvent, options);
   }
-
-  window.addEventListener("keydown", guardClipboardEvent, options);
-  document.addEventListener("keydown", guardClipboardEvent, options);
 
   listenersAttached = true;
 }
@@ -84,13 +156,11 @@ function detachGuards() {
 
   const options = { capture: true };
 
-  for (const eventName of GUARDED_EVENTS) {
+  const activeEvents = [...BASE_EVENTS, ...ULTRA_EXTRA_EVENTS];
+  for (const eventName of activeEvents) {
     window.removeEventListener(eventName, guardClipboardEvent, options);
     document.removeEventListener(eventName, guardClipboardEvent, options);
   }
-
-  window.removeEventListener("keydown", guardClipboardEvent, options);
-  document.removeEventListener("keydown", guardClipboardEvent, options);
 
   listenersAttached = false;
 }
@@ -156,11 +226,57 @@ function ensureSelectionStyle() {
   (document.head || document.documentElement).appendChild(selectionStyleTag);
 }
 
+function ensureOverlayStyle() {
+  if (overlayStyleTag || !document.documentElement) {
+    return;
+  }
+
+  overlayStyleTag = document.createElement("style");
+  overlayStyleTag.id = "ecp-overlay-style";
+  overlayStyleTag.textContent =
+    "* { user-select: text !important; -webkit-user-select: text !important; pointer-events: auto !important; }";
+  (document.head || document.documentElement).appendChild(overlayStyleTag);
+}
+
 function removeSelectionStyle() {
   if (selectionStyleTag && selectionStyleTag.parentNode) {
     selectionStyleTag.parentNode.removeChild(selectionStyleTag);
   }
   selectionStyleTag = null;
+}
+
+function removeOverlayStyle() {
+  if (overlayStyleTag && overlayStyleTag.parentNode) {
+    overlayStyleTag.parentNode.removeChild(overlayStyleTag);
+  }
+  overlayStyleTag = null;
+}
+
+function pierceShadow(root) {
+  if (!root || !(root instanceof Document || root instanceof ShadowRoot || root instanceof Element)) {
+    return;
+  }
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let node = walker.nextNode();
+  while (node) {
+    if (node.shadowRoot) {
+      debugState.blockerSignals.shadowRootCount += 1;
+      clearInlineBlockingHandlers(node.shadowRoot.host);
+      pierceShadow(node.shadowRoot);
+    }
+    node = walker.nextNode();
+  }
+}
+
+function clearBlockingClasses() {
+  const classNames = ["no-copy", "no-select", "disable-copy", "disable-select", "prevent-copy"];
+  if (document.body) {
+    document.body.classList.remove(...classNames);
+  }
+  if (document.documentElement) {
+    document.documentElement.classList.remove(...classNames);
+  }
 }
 
 function startDomObserver() {
@@ -174,8 +290,10 @@ function startDomObserver() {
     }
 
     neutralizeKnownInlineHandlers();
+    clearBlockingClasses();
+    pierceShadow(document);
 
-    if (currentSettings.aggressiveMode) {
+    if (currentSettings.mode !== MODES.NORMAL) {
       for (const mutation of mutations) {
         if (mutation.type === "attributes" && mutation.target instanceof Element) {
           clearInlineBlockingHandlers(mutation.target);
@@ -219,6 +337,27 @@ function stopDomObserver() {
   }
 }
 
+function startRebindingDefenseLoop() {
+  if (rebindingIntervalId || currentSettings.mode !== MODES.ULTRA) {
+    return;
+  }
+
+  rebindingIntervalId = window.setInterval(() => {
+    if (!currentSettings.enabled || currentSettings.mode !== MODES.ULTRA) {
+      return;
+    }
+    neutralizeKnownInlineHandlers();
+    clearBlockingClasses();
+  }, 1000);
+}
+
+function stopRebindingDefenseLoop() {
+  if (rebindingIntervalId) {
+    window.clearInterval(rebindingIntervalId);
+    rebindingIntervalId = null;
+  }
+}
+
 function injectPageGuardIfNeeded() {
   if (pageGuardInjected) {
     return;
@@ -255,32 +394,58 @@ function notifyPageGuard() {
   const event = new CustomEvent("ECP_PAGE_GUARD_UPDATE", {
     detail: {
       enabled: currentSettings.enabled,
-      aggressiveMode: currentSettings.aggressiveMode
+      mode: currentSettings.mode
     }
   });
   window.dispatchEvent(event);
 }
 
 function applySettings() {
+  const overridesApplied = [];
+
   if (!currentSettings.enabled) {
     detachGuards();
     stopDomObserver();
+    stopRebindingDefenseLoop();
     removeSelectionStyle();
+    removeOverlayStyle();
     notifyPageGuard();
+    updateDebugState([]);
     return;
   }
 
+  // Rebind listeners by current mode.
+  detachGuards();
   attachGuards();
+  overridesApplied.push("capture-event-guards");
   neutralizeKnownInlineHandlers();
+  overridesApplied.push("inline-handler-neutralization");
   startDomObserver();
+  overridesApplied.push("mutation-observer-self-healing");
+  clearBlockingClasses();
+  pierceShadow(document);
+  overridesApplied.push("shadow-dom-piercing");
 
-  if (currentSettings.aggressiveMode) {
+  if (currentSettings.mode === MODES.AGGRESSIVE || currentSettings.mode === MODES.ULTRA) {
     injectPageGuardIfNeeded();
+    overridesApplied.push("page-context-event-monkey-patch");
     ensureSelectionStyle();
+    overridesApplied.push("forced-selection-style");
   } else {
     removeSelectionStyle();
   }
 
+  if (currentSettings.mode === MODES.ULTRA) {
+    ensureOverlayStyle();
+    startRebindingDefenseLoop();
+    overridesApplied.push("pointer-events-css-override");
+    overridesApplied.push("anti-rebinding-defense-loop");
+  } else {
+    removeOverlayStyle();
+    stopRebindingDefenseLoop();
+  }
+
+  updateDebugState(overridesApplied);
   notifyPageGuard();
 }
 
@@ -328,6 +493,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       });
 
     return true;
+  }
+
+  if (message.type === "ECP_GET_DEBUG_STATUS") {
+    sendResponse({
+      ok: true,
+      status: debugState
+    });
   }
 });
 

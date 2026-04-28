@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Copy Paste Enabler - C.P.E</title>
+    <title>Enable Copy Paste - E.C.P</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
     <header class="header">
-      <span class="header-title">Copy Paste Enabler - C.P.E</span>
+      <span class="header-title">Enable Copy Paste - E.C.P</span>
       <span class="header-version">V 1.0.0</span>
     </header>
 
     <main class="container">
-      <h1>Copy Paste Enable For All Websites</h1>
+      <h1>Enable Copy Paste For All Websites</h1>
       <hr />
 
       <p>
@@ -38,15 +38,27 @@
           <span>Enable</span>
         </label>
 
-        <label class="checkbox-row">
-          <input type="checkbox" id="aggressiveToggle" />
-          <span>Aggressive Mode (Breaks certain features)</span>
+        <label class="mode-row" for="modeSelect">
+          <span>Protection Mode</span>
+          <select id="modeSelect">
+            <option value="normal">Normal</option>
+            <option value="aggressive">Aggressive</option>
+            <option value="ultra">Ultra</option>
+          </select>
         </label>
 
         <label class="checkbox-row">
           <input type="checkbox" id="darkModeToggle" />
           <span>Dark Mode</span>
         </label>
+      </div>
+
+      <div class="debug-panel">
+        <div class="debug-header">
+          <span>Debug Panel</span>
+          <button id="refreshDebugBtn" type="button">Refresh</button>
+        </div>
+        <div id="debugContent" class="debug-content">Loading status...</div>
       </div>
 
       <div id="saveToast" class="save-toast" aria-live="polite">✓ Saved</div>

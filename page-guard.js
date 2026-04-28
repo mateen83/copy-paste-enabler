@@ -6,15 +6,6 @@
     return;
   }
 
-  const blockedTypes = new Set([
-    "copy",
-    "cut",
-    "paste",
-    "contextmenu",
-    "selectstart",
-    "dragstart",
-    "keydown"
-  ]);
   const originalAdd = EventTarget.prototype.addEventListener;
   const originalRemove = EventTarget.prototype.removeEventListener;
   const listenerMap = new WeakMap();
@@ -23,8 +14,42 @@
   const state = {
     initialized: true,
     enabled: true,
-    aggressiveMode: true
+    mode: "aggressive"
   };
+
+  function getBlockedTypes() {
+    if (state.mode === "ultra") {
+      return new Set([
+        "copy",
+        "cut",
+        "paste",
+        "contextmenu",
+        "selectstart",
+        "dragstart",
+        "keydown",
+        "keypress",
+        "keyup",
+        "mousedown",
+        "mouseup"
+      ]);
+    }
+
+    if (state.mode === "aggressive") {
+      return new Set([
+        "copy",
+        "cut",
+        "paste",
+        "contextmenu",
+        "selectstart",
+        "dragstart",
+        "keydown",
+        "keypress",
+        "keyup"
+      ]);
+    }
+
+    return new Set(["copy", "cut", "paste", "contextmenu", "selectstart", "dragstart"]);
+  }
 
   function shouldProtectKeyboardEvent(event) {
     if (!event || event.type !== "keydown") {
@@ -41,8 +66,13 @@
       return listener;
     }
 
-    if (!blockedTypes.has(type)) {
+    const blockedNow = getBlockedTypes();
+    if (!blockedNow.has(type)) {
       return listener;
+    }
+
+    if (state.mode === "ultra") {
+      return null;
     }
 
     const wrapped = function(event) {
@@ -78,6 +108,9 @@
   EventTarget.prototype.addEventListener = function(type, listener, options) {
     try {
       const wrapped = createWrappedListener(type, listener);
+      if (wrapped === null) {
+        return;
+      }
       if (listener !== wrapped) {
         optionsMap.set(listener, options);
       }
@@ -123,7 +156,7 @@
     (event) => {
       const detail = event && event.detail ? event.detail : {};
       state.enabled = Boolean(detail.enabled);
-      state.aggressiveMode = Boolean(detail.aggressiveMode);
+      state.mode = ["normal", "aggressive", "ultra"].includes(detail.mode) ? detail.mode : "aggressive";
       clearPageInlineHandlers();
     },
     true
