@@ -141,3 +141,7 @@ body.dark .save-toast {
   color: #b9d0ff;
   background: rgba(22, 54, 118, 0.38);
 }
+.container p {
+
+  text-align: center;
+}

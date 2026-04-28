@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "copy paste enabler",
-  "version": "2.0.0.3",
+  "version": "1.0.0",
   "description": "Re-enable copy, paste, cut, right-click, and text selection on websites that block these interactions.",
   "permissions": [
     "storage",
@@ -23,6 +23,16 @@
         "content.js"
       ],
       "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page-guard.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "action": {
