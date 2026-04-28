@@ -105,6 +105,15 @@ function renderDebugStatus(status) {
     return;
   }
 
+  const formattedLastApplied = status.lastAppliedAt
+    ? new Date(status.lastAppliedAt).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true
+      })
+    : "N/A";
+
   const lines = [
     `Mode: ${status.mode}`,
     `Enabled: ${status.enabled ? "Yes" : "No"}`,
@@ -112,12 +121,7 @@ function renderDebugStatus(status) {
     `Iframes: ${status.blockerSignals.iframeCount}`,
     `Cross-origin iframes: ${status.blockerSignals.crossOriginIframeCount}`,
     `Shadow roots found: ${status.blockerSignals.shadowRootCount}`,
-    `Overrides: ${
-      status.overridesApplied && status.overridesApplied.length > 0
-        ? status.overridesApplied.join(", ")
-        : "None"
-    }`,
-    `Last applied: ${status.lastAppliedAt ? new Date(status.lastAppliedAt).toLocaleTimeString() : "N/A"}`
+    `Last applied: ${formattedLastApplied}`
   ];
 
   if (status.blockerSignals.crossOriginIframeCount > 0) {
