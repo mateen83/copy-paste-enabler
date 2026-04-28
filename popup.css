@@ -1,0 +1,143 @@
+:root {
+  --blue: #0b61d8;
+  --light-bg: #ffffff;
+  --light-text: #171717;
+  --dark-bg: #1a1a2e;
+  --dark-text: #f2f2f2;
+  --muted: #5f5f5f;
+  --divider: #dcdcdc;
+  --toast-bg: rgba(11, 97, 216, 0.12);
+  --toast-text: #0b61d8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 420px;
+  min-height: 320px;
+  font-family: "Courier New", Courier, monospace;
+  background: var(--light-bg);
+  color: var(--light-text);
+}
+
+body.dark {
+  background: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+.header {
+  background: var(--blue);
+  color: #ffffff;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.header-title,
+.header-version {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.container {
+  padding: 16px 16px 14px;
+}
+
+h1 {
+  margin: 0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--divider);
+  margin: 12px 0;
+}
+
+body.dark hr {
+  border-top-color: rgba(255, 255, 255, 0.2);
+}
+
+p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+body.dark p {
+  color: rgba(242, 242, 242, 0.86);
+}
+
+.support-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.support-link:hover,
+.support-link:focus-visible {
+  text-decoration: underline;
+}
+
+.settings {
+  display: grid;
+  gap: 10px;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-row input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--blue);
+}
+
+.save-toast {
+  margin-top: 14px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 150ms ease, transform 150ms ease;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--toast-text);
+  background: var(--toast-bg);
+  border: 1px solid rgba(11, 97, 216, 0.22);
+  border-radius: 6px;
+  width: fit-content;
+  padding: 4px 8px;
+}
+
+.save-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body.dark .save-toast {
+  border-color: rgba(138, 178, 255, 0.32);
+  color: #b9d0ff;
+  background: rgba(22, 54, 118, 0.38);
+}

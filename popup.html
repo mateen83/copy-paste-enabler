@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enable Copy Paste - E.C.P</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="header">
+      <span class="header-title">Enable Copy Paste - E.C.P</span>
+      <span class="header-version">V 2.0.0.3</span>
+    </header>
+
+    <main class="container">
+      <h1>Enable Copy Paste For All Websites</h1>
+      <hr />
+
+      <p>
+        Please refresh the page after enabling or disabling the extension. This extension does not
+        work for pages that make use of specialized techniques for disabling copy, paste
+        functionality.
+      </p>
+
+      <a
+        class="support-link"
+        href="https://github.com/sponsors"
+        target="_blank"
+        rel="noopener noreferrer"
+        >↗ Support our work</a
+      >
+
+      <hr />
+
+      <div class="settings">
+        <label class="checkbox-row">
+          <input type="checkbox" id="enabledToggle" />
+          <span>Enable</span>
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="aggressiveToggle" />
+          <span>Aggressive Mode (Breaks certain features)</span>
+        </label>
+
+        <label class="checkbox-row">
+          <input type="checkbox" id="darkModeToggle" />
+          <span>Dark Mode</span>
+        </label>
+      </div>
+
+      <div id="saveToast" class="save-toast" aria-live="polite">✓ Saved</div>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
