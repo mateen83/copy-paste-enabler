@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "copy paste enabler",
+  "name": "Copy Paste Enable - C.P.E",
   "version": "1.0.0",
   "description": "Re-enable copy, paste, cut, right-click, and text selection on websites that block these interactions.",
   "permissions": [
@@ -22,7 +22,8 @@
       "js": [
         "content.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [

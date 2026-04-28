@@ -4,7 +4,7 @@ const STORAGE_KEYS = ["enabled", "mode", "darkMode", "aggressiveMode"];
 
 const DEFAULT_SETTINGS = {
   enabled: true,
-  mode: "aggressive",
+  mode: "ultra",
   darkMode: false
 };
 
@@ -20,17 +20,12 @@ const BASE_EVENTS = [
   "paste",
   "contextmenu",
   "selectstart",
-  "dragstart",
-  "keydown",
-  "keypress",
-  "keyup"
+  "keydown"
 ];
-const ULTRA_EXTRA_EVENTS = ["mousedown", "mouseup"];
 
 let currentSettings = { ...DEFAULT_SETTINGS };
 let domObserver = null;
 let selectionStyleTag = null;
-let overlayStyleTag = null;
 let listenersAttached = false;
 let pageGuardInjected = false;
 let rebindingIntervalId = null;
@@ -49,13 +44,10 @@ const debugState = {
 };
 
 function getActiveEventsByMode() {
-  if (currentSettings.mode === MODES.ULTRA) {
-    return [...BASE_EVENTS, ...ULTRA_EXTRA_EVENTS];
-  }
-  if (currentSettings.mode === MODES.AGGRESSIVE) {
+  if (currentSettings.mode === MODES.AGGRESSIVE || currentSettings.mode === MODES.ULTRA) {
     return BASE_EVENTS;
   }
-  return ["copy", "cut", "paste", "contextmenu", "selectstart", "dragstart", "keydown"];
+  return ["copy", "cut", "paste", "contextmenu", "selectstart", "keydown"];
 }
 
 function updateDebugState(overridesApplied) {
@@ -156,7 +148,7 @@ function detachGuards() {
 
   const options = { capture: true };
 
-  const activeEvents = [...BASE_EVENTS, ...ULTRA_EXTRA_EVENTS];
+  const activeEvents = BASE_EVENTS;
   for (const eventName of activeEvents) {
     window.removeEventListener(eventName, guardClipboardEvent, options);
     document.removeEventListener(eventName, guardClipboardEvent, options);
@@ -176,7 +168,6 @@ function clearInlineBlockingHandlers(node) {
     "onpaste",
     "oncontextmenu",
     "onselectstart",
-    "ondragstart",
     "onkeydown"
   ];
 
@@ -197,7 +188,6 @@ function clearInlineBlockingHandlers(node) {
       node.removeAttribute("onpaste");
       node.removeAttribute("oncontextmenu");
       node.removeAttribute("onselectstart");
-      node.removeAttribute("ondragstart");
       node.removeAttribute("onkeydown");
       node.style.setProperty("user-select", "text", "important");
       node.style.setProperty("-webkit-user-select", "text", "important");
@@ -226,30 +216,11 @@ function ensureSelectionStyle() {
   (document.head || document.documentElement).appendChild(selectionStyleTag);
 }
 
-function ensureOverlayStyle() {
-  if (overlayStyleTag || !document.documentElement) {
-    return;
-  }
-
-  overlayStyleTag = document.createElement("style");
-  overlayStyleTag.id = "ecp-overlay-style";
-  overlayStyleTag.textContent =
-    "* { user-select: text !important; -webkit-user-select: text !important; pointer-events: auto !important; }";
-  (document.head || document.documentElement).appendChild(overlayStyleTag);
-}
-
 function removeSelectionStyle() {
   if (selectionStyleTag && selectionStyleTag.parentNode) {
     selectionStyleTag.parentNode.removeChild(selectionStyleTag);
   }
   selectionStyleTag = null;
-}
-
-function removeOverlayStyle() {
-  if (overlayStyleTag && overlayStyleTag.parentNode) {
-    overlayStyleTag.parentNode.removeChild(overlayStyleTag);
-  }
-  overlayStyleTag = null;
 }
 
 function pierceShadow(root) {
@@ -323,7 +294,6 @@ function startDomObserver() {
       "onpaste",
       "oncontextmenu",
       "onselectstart",
-      "ondragstart",
       "onkeydown",
       "style"
     ]
@@ -408,7 +378,6 @@ function applySettings() {
     stopDomObserver();
     stopRebindingDefenseLoop();
     removeSelectionStyle();
-    removeOverlayStyle();
     notifyPageGuard();
     updateDebugState([]);
     return;
@@ -436,12 +405,9 @@ function applySettings() {
   }
 
   if (currentSettings.mode === MODES.ULTRA) {
-    ensureOverlayStyle();
     startRebindingDefenseLoop();
-    overridesApplied.push("pointer-events-css-override");
     overridesApplied.push("anti-rebinding-defense-loop");
   } else {
-    removeOverlayStyle();
     stopRebindingDefenseLoop();
   }
 

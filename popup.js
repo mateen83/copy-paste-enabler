@@ -2,7 +2,7 @@
 
 const DEFAULT_SETTINGS = {
   enabled: true,
-  mode: "aggressive",
+  mode: "ultra",
   darkMode: false
 };
 
@@ -119,6 +119,12 @@ function renderDebugStatus(status) {
     }`,
     `Last applied: ${status.lastAppliedAt ? new Date(status.lastAppliedAt).toLocaleTimeString() : "N/A"}`
   ];
+
+  if (status.blockerSignals.crossOriginIframeCount > 0) {
+    lines.push(
+      "Warning: protected content inside cross-origin iframes may not be fully controllable."
+    );
+  }
   elements.debugContent.textContent = lines.join("\n");
 }
 

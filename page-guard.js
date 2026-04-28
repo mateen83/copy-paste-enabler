@@ -14,7 +14,7 @@
   const state = {
     initialized: true,
     enabled: true,
-    mode: "aggressive"
+    mode: "ultra"
   };
 
   function getBlockedTypes() {
@@ -25,12 +25,7 @@
         "paste",
         "contextmenu",
         "selectstart",
-        "dragstart",
-        "keydown",
-        "keypress",
-        "keyup",
-        "mousedown",
-        "mouseup"
+        "keydown"
       ]);
     }
 
@@ -41,14 +36,11 @@
         "paste",
         "contextmenu",
         "selectstart",
-        "dragstart",
-        "keydown",
-        "keypress",
-        "keyup"
+        "keydown"
       ]);
     }
 
-    return new Set(["copy", "cut", "paste", "contextmenu", "selectstart", "dragstart"]);
+    return new Set(["copy", "cut", "paste", "contextmenu", "selectstart"]);
   }
 
   function shouldProtectKeyboardEvent(event) {
@@ -71,12 +63,8 @@
       return listener;
     }
 
-    if (state.mode === "ultra") {
-      return null;
-    }
-
     const wrapped = function(event) {
-      if (!state.enabled || !state.aggressiveMode) {
+      if (!state.enabled || state.mode === "normal") {
         return listener.call(this, event);
       }
 
@@ -108,9 +96,6 @@
   EventTarget.prototype.addEventListener = function(type, listener, options) {
     try {
       const wrapped = createWrappedListener(type, listener);
-      if (wrapped === null) {
-        return;
-      }
       if (listener !== wrapped) {
         optionsMap.set(listener, options);
       }
@@ -143,7 +128,6 @@
         target.onpaste = null;
         target.oncontextmenu = null;
         target.onselectstart = null;
-        target.ondragstart = null;
         target.onkeydown = null;
       } catch (_error) {
         // Ignore readonly objects on hardened pages.
@@ -156,7 +140,7 @@
     (event) => {
       const detail = event && event.detail ? event.detail : {};
       state.enabled = Boolean(detail.enabled);
-      state.mode = ["normal", "aggressive", "ultra"].includes(detail.mode) ? detail.mode : "aggressive";
+      state.mode = ["normal", "aggressive", "ultra"].includes(detail.mode) ? detail.mode : "ultra";
       clearPageInlineHandlers();
     },
     true

@@ -31,11 +31,15 @@ async function notifyTabToRefresh(tabId) {
   }
 }
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === "complete") {
-    notifyTabToRefresh(tabId);
-  }
-});
+if (chrome.tabs && chrome.tabs.onUpdated && typeof chrome.tabs.onUpdated.addListener === "function") {
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === "complete") {
+      notifyTabToRefresh(tabId);
+    }
+  });
+} else {
+  console.warn("[ECP] chrome.tabs.onUpdated is unavailable in this context.");
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== "object") {
@@ -43,6 +47,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === "ECP_BROADCAST_REFRESH") {
+    if (!chrome.tabs || typeof chrome.tabs.query !== "function") {
+      sendResponse({
+        ok: false,
+        error: "tabs API is unavailable"
+      });
+      return;
+    }
+
     chrome.tabs.query({}, (tabs) => {
       if (chrome.runtime.lastError) {
         sendResponse({
